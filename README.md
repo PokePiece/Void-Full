@@ -1,155 +1,176 @@
-# 🧠 The Brain
+# ☁️ Void: The Cloud Intelligence Structure
 
-AGI Brain App
+**Void** is a Python-based backend platform designed to operate as a cloud-resident intelligence system. It is not an AGI brain emulator but rather a *repository of intelligent capability*—a modular structure built for dynamic routing of queries, tool use, and intelligent function through cloud-deployed language models and services.
 
-This is the FastAPI backend for **the Brain**, an AGI Brain app powered by [Together AI](https://platform.together.ai/) using the LLaMA 3 70B model. It handles chat routing, returns model responses, tracks token usage, and supports minimal in-memory conversation context.
+Void serves as the centralized router and executor of intelligent behavior. It operates via FastAPI and is built to support modular intelligent functions, including inference, routing, external API use, memory management, and tool invocation. It is model-agnostic, fine-tune–ready, and structured for extension.
 
----
+* * *
 
-## ✨ About the AGI Brain
+## ✨ Overview
 
-The AGI Brain represents an advanced artificial general intelligence system, designed to execute complex logical operations simultaneously through robust asynchronous functionality. Engineered primarily in Python, its comprehensive knowledge base is currently managed by ChromaDB, with a strategic transition to Supabase planned for enhanced scalability and dynamic evolution. This architecture features distinct logical partitions, allowing for independent task routing across diverse subjects. The system is structured into three specialized modules: a forward-focused communication segment for human interaction, a powerful core module for intricate reasoning, automation, and integrated tool use, and a dedicated 'suites' module for specialized functions such as coding, research, and skill creation. This design fundamentally optimizes the Brain for rapid advancements in AI reasoning capabilities.
+Void is a cloud intelligence node with the following goals:
 
----
+- Provide structured access to LLMs and intelligence tools.
+    
+- Route tasks to the appropriate handlers or model agents.
+    
+- Act as a foundation for a network of cloud-resident intelligent processes.
+    
+- Serve as an evolving intelligence backend for custom frontend clients.
+    
 
-## 🚀 Features
+It integrates principles from AGI system design—modular decomposition, memory layering, tool usage, and multi-agent interfacing—without claiming AGI itself.
 
-- 🌐 **FastAPI** backend with full CORS support
-- 🤖 Connects to **Together AI’s chat-completion API**
-- 🔁 Modular routing logic via **Core Brain AI** interface
-- 💬 Maintains lightweight conversation memory (non-persistent)
-- 📊 Tracks and logs token usage (`token_log.jsonl`)
-- 🔐 `.env`-based credential loading for API keys
-- 🧼 Memory reset endpoint for clean session starts
+* * *
 
----
+## ⚙️ Core Features
+
+- 🧠 **Intelligent routing layer** for structured prompt handling and role/task management
+    
+- 🌐 **FastAPI backend** with full CORS support for cross-origin deployment
+    
+- 📡 **External model integration** (e.g., Together AI, OpenAI, local models)
+    
+- 💾 **Lightweight memory tracking** (non-persistent or plugin-extensible)
+    
+- 🧰 **Tool invocation modules** (coming soon: code, search, math, etc.)
+    
+- 📊 **Token usage tracking** via `token_log.jsonl`
+    
+- 🔐 **Environment-based API key management**
+    
+
+* * *
 
 ## 📦 Requirements
 
+Create a virtual environment:
+
+bash
+
+CopyEdit
+
+`python -m venv .venvsource .venv/bin/activate # or .venv\Scripts\Activate.ps1 on Windows`
+
 Install dependencies:
 
-```bash
+bash
 
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+CopyEdit
 
-(when done
-deactivate
-)
+`pip install -r requirements.txt`
 
-pip install -r requirements.txt
-Create a .env file:
+Create a `.env` file:
 
-Code snippet
+ini
 
-TOGETHER_API_KEY=your_together_api_key
-🛠️ Usage
+CopyEdit
+
+`TOGETHER_API_KEY=your_together_api_key`
+
+* * *
+
+## 🚀 Local Development
+
 Start the server locally:
 
-Bash
+bash
 
-uvicorn main:app --reload
-Example POST to /chat:
+CopyEdit
 
-JSON
+`uvicorn main:app --reload`
 
-{
-  "prompt": "What is the Brain?",
-  "max_tokens": 1000
-}
-🧪 API Endpoints
-Method
+Test an endpoint:
 
-Endpoint
+json
 
-Description
+CopyEdit
 
-POST
+`POST /chat{ "prompt": "What is the Void?", "max_tokens": 1000}`
 
-/chat
+* * *
 
-Routes prompt through Core Brain AI to Together
+## 🧪 API Endpoints
 
-GET
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| POST | `/chat` | Routes prompt through the intelligent core |
+| GET | `/usage-stats` | Returns total token usage |
+| GET | `/daily-tokens` | Returns today's token usage |
+| POST | `/reset-memory` | Clears current conversation memory |
+| GET | `/okcheck` | Health check endpoint |
 
-/usage-stats
+* * *
 
-Returns total token usage
+## 🧾 Token Logging
 
-GET
+Token usage is logged in `token_log.jsonl` as newline-delimited JSON:
 
-/daily-tokens
+json
 
-Returns token usage for today
+CopyEdit
 
-POST
+`{ "timestamp": "2025-07-20T00:00:00Z", "prompt_tokens": 120, "completion_tokens": 100, "total_tokens": 220}`
 
-/reset-memory
+* * *
 
-Clears conversation history
+## ☁️ Deployment (Render Example)
 
+Include the following files:
 
-Export to Sheets
-🧾 Token Logging
-Token usage is logged to token_log.jsonl as newline-delimited JSON:
+- `main.py`
+    
+- `requirements.txt`
+    
+- `start.sh`
+    
 
-JSON
+### Example `start.sh`:
 
-{
-  "timestamp": "2025-07-03T00:00:00Z",
-  "prompt_tokens": 120,
-  "completion_tokens": 100,
-  "total_tokens": 220
-}
-🚀 Deployment (Render)
-Required Files:
+bash
 
-main.py
+CopyEdit
 
-requirements.txt
+`#!/usr/bin/env bashgunicorn -w 1 -k uvicorn.workers.UvicornWorker main:app`
 
-start.sh:
+### Render Setup:
 
-Bash
+- Push project to GitHub
+    
+- Go to Render → New → Web Service
+    
+- Set environment: Python
+    
+- Build command: *(leave blank)*
+    
+- Start command: `./start.sh`
+    
+- Add `.env` values manually
+    
 
-#!/usr/bin/env bash
-gunicorn -w 1 -k uvicorn.workers.UvicornWorker main:app
-Optional: render.yaml for infrastructure config.
+* * *
 
-Render Setup:
+## 🔒 Security Notes
 
-Push project to GitHub
+- API key is stored securely in `.env`
+    
+- CORS is restricted to authorized origins
+    
+- Development use is local-only by default
+    
+- Planned: JWT auth, route protection, memory persistence
+    
 
-Go to Render
+* * *
 
-New → Web Service
+## 👨‍💻 Author
 
-Use:
-
-Environment: Python
-
-Build Command: (leave blank)
-
-Start Command: ./start.sh
-
-Manually add .env variables
-
-🔒 Security Notes
-This system connects to external AI models and may process sensitive data. Current protections include:
-
-API key stored in .env
-
-Local-only use recommended during development
-
-Future features will include:
-
-JWT-based user auth
-
-Route-level protection
-
-Rate limiting and per-user memory
-
-✍️ Author
-Developed by Dillon Carey
-Director of Personal AI Systems
+**Dillon Carey**  
+Director of Personal AI Systems  
 https://dilloncarey.com
+
+* * *
+
+Let me know if you'd like to add sections for submodules, future roadmap, memory persistence, multi-agent planning, or frontend integration.
+
+Ask ChatGPT
