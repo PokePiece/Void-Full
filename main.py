@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 from typing import Optional
 from prompts import portfolio_prompt, scomaton_prompt, void_interface_prompt, portfolio_accomplishments_prompt, portfolio_masterpiece_prompt, portfolio_skills_prompt, portfolio_reach_prompt, void_general_prompt
+from noises import run_noises
 
 
 load_dotenv() 
@@ -453,6 +454,15 @@ def chat(input: ChatInput):
 @app.get("/okcheck")
 async def ok_check():
     return JSONResponse(content={"ok": True})
+
+
+@app.get('/noisesauto')
+def noises_auto():
+    run_noises()
+    return {"status": "Selenium script executed"}
+
+
+
 
 @app.get("/usage-stats")
 def usage_stats():
