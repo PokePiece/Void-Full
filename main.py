@@ -16,6 +16,11 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from prompts import portfolio_prompt, scomaton_prompt, void_interface_prompt, portfolio_accomplishments_prompt, portfolio_masterpiece_prompt, portfolio_skills_prompt, portfolio_reach_prompt, void_general_prompt
 from noises import run_noises
+from routes.chat import chat_router 
+import threading
+import time
+from deepdive import deepdive_main_loop
+
 
 
 load_dotenv() 
@@ -29,43 +34,59 @@ SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
+app = FastAPI()
 
-#llm = Llama(
-    #model_path="models/tinyllama-1.1b-chat-v0.3.Q4_K_M.gguf",
-    #n_ctx=2048,
-   # n_threads=4,
-    #n_batch=32,
-    #verbose=False
-#)
+app.include_router(chat_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+    "http://localhost:5173",  # Vite dev server
+    "https://scomaton.dilloncarey.com",  # If you ever serve frontend here
+    "https://dilloncarey.com",
+    "https://www.dilloncarey.com",
+    "https://brain.dilloncarey.com",
+    "http://localhost:3000",
+    "https://windmatrix.dilloncarey.com",
+    "https://wintrix.dilloncarey.com",
+],  # Or restrict to your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow POST, OPTIONS, etc.
+    allow_headers=["*"],
+    
+)
 
 
-def build_prompt(instruction: str) -> str:
-    return (
-        "You are a task classifier. Given an instruction, return one of the following task types:\n"
-        "- summarize\n"
-        "- tool_logic\n"
-        "- visual\n"
-        "- other\n\n"
-        f"Instruction: {instruction}\n"
-        "Task type:"
-    )
+TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+TOGETHER_API_URL = "https://api.together.ai/v1/chat/completions"
+LOG_FILE = "token_log.jsonl"
+
+SCOMATON_PASSWORD = os.getenv("SCOMATON_PASSWORD")
 
 
-def get_today_token_usage():
-    total = 0
-    today = datetime.utcnow().date()
+#Deepdive implementation
 
-    try:
-        with open(LOG_FILE, "r") as f:
-            for line in f:
-                entry = json.loads(line)
-                timestamp = datetime.fromisoformat(entry["timestamp"])
-                if timestamp.date() == today:
-                    total += entry.get("total_tokens", 0)
-    except FileNotFoundError:
-        pass
 
-    return total
+def background_deepdive_loop(interval_seconds=3600):
+    while True:
+        try:
+            deepdive_main_loop()
+        except Exception as e:
+            print(f"Deepdive error: {e}")
+        time.sleep(interval_seconds)
+
+# Start deepdive scanner thread when module is imported
+threading.Thread(target=background_deepdive_loop, daemon=True).start()
+
+if __name__ == "__main__":
+    # Start deepdive scanner in background
+    threading.Thread(target=background_deepdive_loop, daemon=True).start()
+
+    # Start your existing FastAPI or app main loop here
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+
+
 
 #Implementing Supabase message fetching and saving
 
@@ -137,31 +158,7 @@ def summarize_messages(messages):
     return {"role": "system", "content": summary.strip(", ")}
 
 
-app = FastAPI()
 
-TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-TOGETHER_API_URL = "https://api.together.ai/v1/chat/completions"
-LOG_FILE = "token_log.jsonl"
-
-SCOMATON_PASSWORD = os.getenv("SCOMATON_PASSWORD")
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-    "http://localhost:5173",  # Vite dev server
-    "https://scomaton.dilloncarey.com",  # If you ever serve frontend here
-    "https://dilloncarey.com",
-    "https://www.dilloncarey.com",
-    "https://brain.dilloncarey.com",
-    "http://localhost:3000",
-    "https://windmatrix.dilloncarey.com",
-],  # Or restrict to your frontend domain
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow POST, OPTIONS, etc.
-    allow_headers=["*"],
-    
-)
 
 
 
@@ -201,7 +198,6 @@ def call_portfolio_general_chatbot(prompt: str, max_tokens: int):
 
 def call_general_chatbot(prompt: str, max_tokens: int):
     return call_chat_model(scomaton_prompt, prompt, max_tokens)
-
 
 def call_brain_interface(prompt: str, max_tokens: int):
     return call_chat_model(void_interface_prompt, prompt, max_tokens)
@@ -265,192 +261,6 @@ def call_chat_model(system_prompt: str, prompt: str, max_tokens: int, tag: str, 
 
 
 
-
-@app.post("/chat")
-def chat(input: ChatInput):
-    print("💬 CHAT RECEIVED:", input)
-    print("Prompt:", input.prompt)
-    print("Max Tokens:", input.max_tokens)
-    
-    route = os_ai_route(input.prompt, input.tag)
-    print(f"Routing decision: {route}")
-
-    if route == "general_chatbot":
-        ai_response, usage = call_general_chatbot(input.prompt, input.max_tokens, tag=input.tag, user_id=input.user_id)
-        # ADD THIS RETURN BLOCK:
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "portfolio_general_chatbot":
-        ai_response, usage = call_portfolio_general_chatbot(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "brain_interface":
-        ai_response, usage = call_brain_interface(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "portfolio_accomplishments":
-        ai_response, usage = call_portfolio_accomplishments(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "portfolio_masterpiece":
-        ai_response, usage = call_portfolio_masterpiece(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "portfolio_skills":
-        ai_response, usage = call_portfolio_skills(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "portfolio_reach":
-        ai_response, usage = call_portfolio_reach(input.prompt, input.max_tokens)
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-    elif route == "void_general":
-        ai_response, usage = call_void_general(input.prompt, input.max_tokens, input.user_id)
-        print(f"INPUT USER_ID: {input.user_id!r}")
-
-        # Return response with usage data as before
-        today_total = get_today_token_usage()
-        daily_limit = 33000
-        warning = None
-        total_tokens = usage.get("total_tokens", 0)
-        if today_total > daily_limit:
-            warning = f"⚠️ You’ve used {today_total} tokens today — over your soft daily limit of {daily_limit}."
-
-        return {
-            "response": ai_response,
-            "tokens": {
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": total_tokens,
-                "daily_total": today_total,
-                "warning": warning
-            }
-        }
-
-    # Add other routing logic later
-    raise HTTPException(status_code=400, detail="Unsupported route")
-
-
-
-
-
-
 @app.get("/okcheck")
 async def ok_check():
     return JSONResponse(content={"ok": True})
@@ -464,70 +274,3 @@ def noises_auto():
 
 
 
-@app.get("/usage-stats")
-def usage_stats():
-    total_prompt = 0
-    total_completion = 0
-    total_total = 0
-    request_count = 0
-
-    try:
-        with open(LOG_FILE, "r") as f:
-            for line in f:
-                entry = json.loads(line)
-                total_prompt += entry.get("prompt_tokens", 0)
-                total_completion += entry.get("completion_tokens", 0)
-                total_total += entry.get("total_tokens", 0)
-                request_count += 1
-    except FileNotFoundError:
-        return {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "request_count": 0
-        }
-
-    return {
-        "prompt_tokens": total_prompt,
-        "completion_tokens": total_completion,
-        "total_tokens": total_total,
-        "request_count": request_count
-    }
-
-
-
-@app.post("/reset-memory")
-def reset_memory():
-    #conversation_history[:] = conversation_history[:1]  # Keep system prompt only
-    return {"message": "Memory cleared"}
-
-
-
-@app.get("/daily-tokens")
-def daily_tokens():
-    daily_limit = 33000
-    used = get_today_token_usage()
-    remaining = max(daily_limit - used, 0)
-    approx_responses_left = remaining // 1000
-
-    return {
-        "daily_limit": daily_limit,
-        "tokens_used_today": used,
-        "tokens_remaining": remaining,
-        "estimated_responses_left": approx_responses_left
-    }
-
-
-
-
-#@app.post("/route-task")
-#async def route_task(request: Request):
-    #data = await request.json()
-    #instruction = data.get("instruction", "")
-
-    #prompt = build_prompt(instruction)
-
-    #result = llm(prompt, max_tokens=10, stop=["\n"])
-    #output = result["choices"][0]["text"].strip().lower()
-
-    #return {"task_type": output}
