@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 import logging
 from supabase import create_client, Client
 from collections import namedtuple
+from memory import store_session
+import time
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -112,6 +115,9 @@ def deepdive_main_loop():
     tweets = fetch_tweets(query)
     print(f"[DEBUG] Retrieved {len(tweets)} tweets")
 
+    relevant_reports = []
+    relevant_tweet_ids = []
+
     for tweet in tweets:
         try:
             print(f"[DEBUG] Analyzing tweet ID {tweet.id}")
@@ -124,11 +130,26 @@ def deepdive_main_loop():
                 print(f"[DEBUG] Generated report: {report[:80]}...")
 
                 save_tweet_to_supabase(tweet.id, tweet.text, score, report)
+
+                relevant_reports.append(report)
+                relevant_tweet_ids.append(tweet.id)
             else:
                 print(f"[DEBUG] Irrelevant. Skipping tweet ID {tweet.id}")
 
         except Exception as e:
             print(f"[ERROR] Error processing tweet ID {tweet.id}: {e}")
+
+    # Now synthesize a session summary (simplified here as concatenation)
+    session_summary = "\n\n".join(relevant_reports) if relevant_reports else "No relevant leads found."
+
+    # Store the session into Chroma memory
+    store_session(
+        session_id="session_" + str(int(time.time())),
+        query=query,
+        session_summary=session_summary,
+        notes="Automated job lead deepdive session",
+        top_tweet_ids=relevant_tweet_ids
+    )
 
 
 
