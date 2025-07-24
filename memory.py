@@ -1,13 +1,12 @@
 # memory.py
 import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
-settings = Settings(chroma_db_impl="duckdb+parquet", persist_directory="./chroma_db")
-client = chromadb.Client(settings=settings)
+# Correct new-style Chroma client
+client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection(name="agent_memory_sessions")
 
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Reuse your existing model
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def embed_text(text):
     return embedding_model.encode(text).tolist()

@@ -20,8 +20,9 @@ from routes.chat import chat_router
 import threading
 import time
 from deepdive import deepdive_main_loop
-
-
+from nicegui import ui
+from nicegui_app import router
+from auto import auto_router
 
 load_dotenv() 
 
@@ -37,19 +38,26 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 app = FastAPI()
 
 app.include_router(chat_router)
+app.include_router(router)
+app.include_router(auto_router)
 
+ui.run_with(app)
+
+
+
+ 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",  # Vite dev server
-    "https://scomaton.dilloncarey.com",  # If you ever serve frontend here
+    "http://localhost:5173",  
+    "https://scomaton.dilloncarey.com",
     "https://dilloncarey.com",
     "https://www.dilloncarey.com",
     "https://brain.dilloncarey.com",
     "http://localhost:3000",
     "https://windmatrix.dilloncarey.com",
     "https://wintrix.dilloncarey.com",
-],  # Or restrict to your frontend domain
+],  
     allow_credentials=True,
     allow_methods=["*"],  # Allow POST, OPTIONS, etc.
     allow_headers=["*"],
@@ -82,7 +90,7 @@ if __name__ == "__main__":
     # Start deepdive scanner in background
     threading.Thread(target=background_deepdive_loop, daemon=True).start()
 
-    # Start your existing FastAPI or app main loop here
+    # Start existing FastAPI or app main loop here
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
 
