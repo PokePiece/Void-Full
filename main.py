@@ -41,7 +41,7 @@ app.include_router(chat_router)
 app.include_router(router)
 app.include_router(auto_router)
 
-ui.run_with(app)
+
 
 
 
@@ -75,7 +75,7 @@ SCOMATON_PASSWORD = os.getenv("SCOMATON_PASSWORD")
 #Deepdive implementation
 
 
-def background_deepdive_loop(interval_seconds=3600):
+def background_deepdive_loop(interval_seconds=28800):
     while True:
         try:
             deepdive_main_loop()
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # Start existing FastAPI or app main loop here
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", port=8000)
 
 
 
@@ -278,7 +278,6 @@ async def ok_check():
 def noises_auto():
     run_noises()
     return {"status": "Selenium script executed"}
-
 
 
 
