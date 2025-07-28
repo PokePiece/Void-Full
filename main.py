@@ -14,7 +14,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 from typing import Optional
-from prompts import portfolio_prompt, scomaton_prompt, void_interface_prompt, portfolio_accomplishments_prompt, portfolio_masterpiece_prompt, portfolio_skills_prompt, portfolio_reach_prompt, void_general_prompt
+from prompts import portfolio_prompt, webtrix_general_prompt, webtrix_expert_prompt, scomaton_prompt, void_interface_prompt, portfolio_accomplishments_prompt, portfolio_masterpiece_prompt, portfolio_skills_prompt, portfolio_reach_prompt, void_general_prompt
 from noises import run_noises
 from routes.chat import chat_router 
 import threading
@@ -50,11 +50,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     "http://localhost:5173",  
+    "http://localhost:3000",
+    "http://localhost:3001",
     "https://scomaton.dilloncarey.com",
     "https://dilloncarey.com",
     "https://www.dilloncarey.com",
     "https://brain.dilloncarey.com",
-    "http://localhost:3000",
     "https://windmatrix.dilloncarey.com",
     "https://wintrix.dilloncarey.com",
 ],  
@@ -177,7 +178,7 @@ class ChatInput(BaseModel):
     user_id: Optional[str] = None
     
 
-
+#Turn deepdive into core brain AI -- (undo obsolete 'os' term)
 
 def os_ai_route(prompt: str, tag: str) -> str:
     if tag == "portfolio-general-chat":
@@ -196,6 +197,10 @@ def os_ai_route(prompt: str, tag: str) -> str:
         return 'portfolio_masterpiece'
     elif tag=='void_general':
         return 'void_general'
+    elif tag=='webtrix_general':
+        return 'webtrix_general'
+    elif tag=='webtrix_expert':
+        return 'webtrix_expert'
     else:
         return "general_chatbot"
 
@@ -223,12 +228,50 @@ def call_portfolio_reach(prompt: str, max_tokens: int):
     return call_chat_model(portfolio_reach_prompt, prompt, max_tokens)
 
 def call_void_general(prompt: str, max_tokens: int, user_id: str):
-    return call_chat_model(void_general_prompt, prompt, max_tokens, "void_general", user_id)
+    return call_saving_chat_model(void_general_prompt, prompt, max_tokens, "void_general", user_id)
+
+def call_webtrix_general(prompt: str, max_tokens: int, user_id: str):
+    return call_chat_model(webtrix_general_prompt, prompt, max_tokens)
+
+def call_webtrix_expert(prompt: str, max_tokens: int, user_id: str):
+    return call_chat_model(webtrix_expert_prompt, prompt, max_tokens)
+
+
+def call_chat_model(system_prompt: str, prompt: str, max_tokens: int):
+    headers = {
+        "Authorization": f"Bearer {TOGETHER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    conversation_history = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+
+    data = {
+        "model": "meta-llama/Llama-3-70b-chat-hf",
+        "messages": conversation_history,
+        "max_tokens": max_tokens,
+        "temperature": 0.7
+    }
+
+    print("Sending to TogetherAI:", data)
+    response = requests.post(TOGETHER_API_URL, headers=headers, json=data)
+
+    if response.status_code != 200:
+        print("TogetherAI error:", response.status_code, response.text)
+        raise HTTPException(status_code=500, detail=response.text)
+
+    res_json = response.json()
+    ai_response = res_json["choices"][0]["message"]["content"].strip()
+
+    return ai_response, res_json.get("usage", {})
+
 
 
 
 # pass tag, user id
-def call_chat_model(system_prompt: str, prompt: str, max_tokens: int, tag: str, user_id: str):
+def call_saving_chat_model(system_prompt: str, prompt: str, max_tokens: int, tag: str, user_id: str):
     headers = {
         "Authorization": f"Bearer {TOGETHER_API_KEY}",
         "Content-Type": "application/json"
