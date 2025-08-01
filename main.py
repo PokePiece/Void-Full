@@ -52,6 +52,7 @@ app.add_middleware(
     "http://localhost:5173",  
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
     "https://scomaton.dilloncarey.com",
     "https://dilloncarey.com",
     "https://www.dilloncarey.com",
