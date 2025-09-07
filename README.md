@@ -170,7 +170,3 @@ Director of Personal AI Systems
 https://dilloncarey.com
 
 * * *
-
-Let me know if you'd like to add sections for submodules, future roadmap, memory persistence, multi-agent planning, or frontend integration.
-
-Ask ChatGPT
